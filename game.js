@@ -18,8 +18,9 @@ var scene, camera, renderer;
 
 var plane, sphere, player;
 
-viewWidth = window.innerWidth / 1.1;
-viewHeight = window.innerHeight / 1.1;
+var scaling = 0.9;
+viewWidth = window.innerWidth * scaling;
+viewHeight = window.innerHeight * scaling;
 
 function initEngine() {
   raycaster = new THREE.Raycaster();
@@ -29,7 +30,10 @@ function initEngine() {
 
   scene = new THREE.Scene();
   
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  //camera = new THREE.PerspectiveCamera(75, viewWidth / viewHeight, 0.1, 1000);
+  var r = viewWidth / viewHeight;
+  var x = 5;
+  camera = new THREE.OrthographicCamera(-x*r, x*r, x, -x, 1, 1000);
   camera.position.set(0, 0, 10);
   camera.lookAt(scene.position);
 
@@ -50,6 +54,8 @@ function initEngine() {
   controls.dynamicDampingFactor = 0.3;
 }
 
+var sphereRadius = 5;
+
 function initObjects() {
   player = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 0.2),
@@ -65,7 +71,7 @@ function initObjects() {
   scene.add(plane);
 
   sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(5, 24, 24),
+    new THREE.SphereGeometry(sphereRadius, 24, 24),
     new THREE.MeshBasicMaterial({color: 0xaaaaff, visible: debug})
   );
   scene.add(sphere);
@@ -85,7 +91,7 @@ function onMouseMove(event) {
     player.position.copy(intersect.point);
   } else {
     intersect = raycaster.intersectObject(plane)[0];
-    player.position.copy(intersect.point.normalize().multiplyScalar(5));
+    player.position.copy(intersect.point.normalize().multiplyScalar(sphereRadius));
   }
   //text.innerHTML = (player.position.x + ", " + player.position.y + ", " + player.position.z);
   player.lookAt(center);
