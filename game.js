@@ -16,7 +16,7 @@ var controls;
 
 var scene, camera, renderer;
 
-var plane, sphere, player;
+var plane, sphere, circle, player, ball;
 
 var scaling = 0.9;
 viewWidth = window.innerWidth * scaling;
@@ -30,10 +30,10 @@ function initEngine() {
 
   scene = new THREE.Scene();
   
-  //camera = new THREE.PerspectiveCamera(75, viewWidth / viewHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(90, viewWidth / viewHeight, 0.1, 1000);
   var r = viewWidth / viewHeight;
-  var x = 5;
-  camera = new THREE.OrthographicCamera(-x*r, x*r, x, -x, 1, 1000);
+  var x = 6; // should be a bit greater than sphereRadius -- not coding it for now but keep in mind
+  //camera = new THREE.OrthographicCamera(-x*r, x*r, x, -x, 1, 1000);
   camera.position.set(0, 0, 10);
   camera.lookAt(scene.position);
 
@@ -54,11 +54,13 @@ function initEngine() {
   controls.dynamicDampingFactor = 0.3;
 }
 
+var paddleSize = 1;
 var sphereRadius = 5;
+var ballRadius = 0.2;
 
 function initObjects() {
   player = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 0.2),
+    new THREE.BoxGeometry(paddleSize, paddleSize, 0.2),
     new THREE.MeshBasicMaterial({color: 0xdd2222})
   );
   scene.add(player);
@@ -71,10 +73,30 @@ function initObjects() {
   scene.add(plane);
 
   sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(sphereRadius, 24, 24),
-    new THREE.MeshBasicMaterial({color: 0xaaaaff, visible: debug})
+    new THREE.SphereGeometry(sphereRadius, 48, 48),
+    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5, visible: debug})
   );
   scene.add(sphere);
+
+  circle = new THREE.Mesh(
+      new THREE.CircleGeometry(sphereRadius, 60),
+      new THREE.MeshBasicMaterial(/*{color:0xaaaaff}*/) // using rgb for now for easier math
+  );
+  circle.material.normalColor = new THREE.Color(0.6, 0.6, 1); // !! new property !!
+  circle.material.hitColor = new THREE.Color(0.7, 0.7, 1); // !! new property !!
+  circle.material.color.copy(circle.material.normalColor);
+  scene.add(circle);
+
+  ball = new THREE.Mesh(
+    new THREE.SphereGeometry(ballRadius, 12, 12),
+    new THREE.MeshBasicMaterial(/*{color: 0xffffff}*/)
+  );
+  ball.material.normalColor = new THREE.Color(1, 1, 1);
+  ball.material.hitColor = new THREE.Color(1, 0, 0);
+  ball.material.color.copy(ball.material.normalColor);
+  ball.position.set(0, 1, 0);
+  ball.velocity = new THREE.Vector3(0.01, 0.01, 0.1); // !! new property !!
+  scene.add(ball);
 }
 
 var center = new THREE.Vector3(0, 0, 0);
@@ -107,16 +129,37 @@ window.addEventListener("keypress", function(event) {
   }  
 });
 
-var player_delta = 0.2;
+/* target = (1 - alpha)*color1 + alpha*color2 */
+function _interpolate(target, alpha, color1, color2) {
+  target.setRGB(
+    color2.r * alpha + color1.r * (1 - alpha),
+    color2.g * alpha + color1.g * (1 - alpha),
+    color2.b * alpha + color1.b * (1 - alpha)
+  );
+}
+  
+var normal = new THREE.Vector3(0, 0, 1);
+var hit = 0;
+const hitMax = 20;
 function update() {
-//  if (keyboard.pressed("down"))
-//    player.translateY(-player_delta);
-//  if (keyboard.pressed("up"))
-//    player.translateY(player_delta);
-//  if (keyboard.pressed("left"))
-//    player.translateX(-player_delta);
-//  if (keyboard.pressed("right"))
-//    player.translateX(player_delta);
+  if (ball.position.length() >= 5 - ballRadius) {
+    // multiplyScalar -1 is not really needed but for sake of 'correctness'
+    ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
+  }
+  // risk of jiggly jiggles glitch if we don't have the second check
+  if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(normal) < 0) {
+    hit = hitMax;
+    ball.velocity.reflect(normal);
+    ball.material.color.copy(ball.material.hitColor);
+    //circle.material.color.copy(circle.material.hitColor);
+  } else if (hit > 0) { // or just if (hit)
+    hit -= 1;
+    var p = hit / hitMax; // percentage of time left in hit mode
+    //_interpolate(circle.material.color, p, circle.material.normalColor, circle.material.hitColor);
+    _interpolate(ball.material.color, p, ball.material.normalColor, ball.material.hitColor);
+    //ball.material.color.copy(ball.material.normalColor);
+  }
+  ball.position.add(ball.velocity);
 }
 
 function render() {
