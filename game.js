@@ -8,7 +8,13 @@ function init() {
   stats.domElement.style.top = "0px";
   container.appendChild(stats.domElement);
 }
-//init();
+init();
+
+var debugText;
+function initDebug() {
+  debugText = document.createElement("p");
+  document.body.appendChild(debugText);
+}
 
 var raycaster, mouse;
 var keyboard;
@@ -59,9 +65,14 @@ var sphereRadius = 5;
 var ballRadius = 0.2;
 
 function initObjects() {
+  var geom = new THREE.BoxGeometry(paddleSize, paddleSize, 0.2);
+  geom.faces[8].color.setHex(0x5555ff);
+  geom.faces[9].color.setHex(0x5555ff);
+  geom.faces[2].color.setHex(0x55ff55);
+  geom.faces[3].color.setHex(0x55ff55);
   player = new THREE.Mesh(
-    new THREE.BoxGeometry(paddleSize, paddleSize, 0.2),
-    new THREE.MeshBasicMaterial({color: 0xdd2222})
+    geom,
+    new THREE.MeshBasicMaterial({color: /* 0xdd2222 */ 0xffffff, vertexColors: THREE.FaceColors})
   );
   scene.add(player);
 
@@ -94,7 +105,7 @@ function initObjects() {
   ball.material.normalColor = new THREE.Color(1, 1, 1);
   ball.material.hitColor = new THREE.Color(1, 0, 0);
   ball.material.color.copy(ball.material.normalColor);
-  ball.position.set(0, 1, 0);
+  ball.position.set(0, 1, 0); // eventually want to randomize, as with velocity
   ball.velocity = new THREE.Vector3(0.01, 0.01, 0.1); // !! new property !!
   scene.add(ball);
 }
@@ -122,11 +133,14 @@ window.addEventListener('mousemove', onMouseMove, false);
 
 var debug = true; // toggle with 'd' to see sphere/plane
 window.addEventListener("keypress", function(event) {
-  if (String.fromCharCode(event.charCode) == "d") {
+  var key = String.fromCharCode(event.charCode);
+  if (key == "d") {
     debug = !debug;
     plane.material.visible = debug;
     sphere.material.visible = debug;
-  }  
+  } else if (key == "r") { // r for reset!
+    ball.position.copy(center); // eventually want to randomize (see above (ball initialization))
+  }
 });
 
 /* target = (1 - alpha)*color1 + alpha*color2 */
@@ -137,15 +151,19 @@ function _interpolate(target, alpha, color1, color2) {
     color2.b * alpha + color1.b * (1 - alpha)
   );
 }
-  
+
 var normal = new THREE.Vector3(0, 0, 1);
 var hit = 0;
+var hitPaddle = 0;
 const hitMax = 20;
 function update() {
+  /* // won't need this anymore, but might keep for powerup or such later
   if (ball.position.length() >= 5 - ballRadius) {
     // multiplyScalar -1 is not really needed but for sake of 'correctness'
     ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
   }
+  */
+
   // risk of jiggly jiggles glitch if we don't have the second check
   if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(normal) < 0) {
     hit = hitMax;
@@ -159,6 +177,30 @@ function update() {
     _interpolate(ball.material.color, p, ball.material.normalColor, ball.material.hitColor);
     //ball.material.color.copy(ball.material.normalColor);
   }
+
+  // should be (0, 0, 5). spent an hour wondering why I kept getting crazy values like
+  // -1.3948028, 8.923842, -7.32429, 4.2394809 in x and y until I finally noticed the "e-7" at
+  // the end of those numbers
+  // debugText.innerHTML = JSON.stringify(player.worldToLocal(new THREE.Vector3()));
+  
+  var relativeBallPos = player.worldToLocal(ball.position.clone());
+  if (Math.abs(relativeBallPos.x) <= player.geometry.parameters.width/2 + ballRadius
+      && Math.abs(relativeBallPos.y) <= player.geometry.parameters.height/2 + ballRadius
+      && Math.abs(relativeBallPos.z) <= player.geometry.parameters.depth/2 + ballRadius) {
+    // temporarily lazily reflecting as if off sphere, will fix to actually bounce off
+    // normal of paddle. also caution: can get stuck with the jiggly jigglies -- look out
+    // for that.
+    ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
+  }
+
+  // all for debugging
+  if (keyboard.pressed("right")) player.translateX(0.1);
+  if (keyboard.pressed("left")) player.translateX(-0.1);
+  if (keyboard.pressed("up")) player.translateY(0.1);
+  if (keyboard.pressed("down")) player.translateY(-0.1);
+  if (keyboard.pressed("s")) player.translateZ(0.1);
+  if (keyboard.pressed("w")) player.translateZ(-0.1);
+  
   ball.position.add(ball.velocity);
 }
 
@@ -171,9 +213,10 @@ function animate() {
   requestAnimationFrame(animate);
   render();
   update();
-  //stats.update();
+  stats.update();
 }
 
 initEngine();
 initObjects();
+initDebug();
 animate();
