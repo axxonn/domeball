@@ -43,8 +43,6 @@ function initEngine() {
   camera.position.set(0, 0, 10);
   camera.lookAt(scene.position);
 
-  //scene.fog = new THREE.Fog(0xaaaaaa, 25, 30);
-
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(viewWidth, viewHeight);
   document.body.appendChild(renderer.domElement);
@@ -65,15 +63,12 @@ var sphereRadius = 5;
 var ballRadius = 0.2;
 
 function initObjects() {
-  var geom = new THREE.BoxGeometry(paddleSize, paddleSize, 0.2);
-  geom.faces[8].color.setHex(0x5555ff);
-  geom.faces[9].color.setHex(0x5555ff);
-  geom.faces[2].color.setHex(0x55ff55);
-  geom.faces[3].color.setHex(0x55ff55);
   player = new THREE.Mesh(
-    geom,
-    new THREE.MeshBasicMaterial({color: /* 0xdd2222 */ 0xffffff, vertexColors: THREE.FaceColors})
+    new THREE.BoxGeometry(paddleSize, paddleSize, 0.2),
+    new THREE.MeshBasicMaterial({color: 0xdd2222})
   );
+  player.material.hitColor = new THREE.Color(0, 0, 1);
+  player.material.normalColor = player.material.color.clone(); // for now
   scene.add(player);
 
   plane = new THREE.Mesh(
@@ -112,12 +107,9 @@ function initObjects() {
 
 var center = new THREE.Vector3(0, 0, 0);
 
-//var text = document.createElement("p");
-//document.body.appendChild(text);
 function onMouseMove(event) {
   mouse.x = (event.clientX / viewWidth) * 2 - 1;
   mouse.y = -(event.clientY / viewHeight) * 2 + 1;
-  // text.innerHTML = (mouse.x + ", " + mouse.y);
   raycaster.setFromCamera(mouse, camera);
   var intersect = raycaster.intersectObject(sphere)[0];
   if (intersect) { // check if not null
@@ -126,7 +118,6 @@ function onMouseMove(event) {
     intersect = raycaster.intersectObject(plane)[0];
     player.position.copy(intersect.point.normalize().multiplyScalar(sphereRadius));
   }
-  //text.innerHTML = (player.position.x + ", " + player.position.y + ", " + player.position.z);
   player.lookAt(center);
 }
 window.addEventListener('mousemove', onMouseMove, false);
@@ -153,7 +144,7 @@ function _interpolate(target, alpha, color1, color2) {
 }
 
 var normal = new THREE.Vector3(0, 0, 1);
-var hit = 0;
+var hitWall = 0;
 var hitPaddle = 0;
 const hitMax = 20;
 function update() {
@@ -166,16 +157,15 @@ function update() {
 
   // risk of jiggly jiggles glitch if we don't have the second check
   if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(normal) < 0) {
-    hit = hitMax;
+    hitWall = hitMax;
     ball.velocity.reflect(normal);
     ball.material.color.copy(ball.material.hitColor);
     //circle.material.color.copy(circle.material.hitColor);
-  } else if (hit > 0) { // or just if (hit)
-    hit -= 1;
-    var p = hit / hitMax; // percentage of time left in hit mode
+  } else if (hitWall > 0) { // or just if (hitWall)
+    hitWall -= 1;
+    var p = hitWall / hitMax; // percentage of time left in hit mode
     //_interpolate(circle.material.color, p, circle.material.normalColor, circle.material.hitColor);
     _interpolate(ball.material.color, p, ball.material.normalColor, ball.material.hitColor);
-    //ball.material.color.copy(ball.material.normalColor);
   }
 
   // should be (0, 0, 5). spent an hour wondering why I kept getting crazy values like
@@ -191,6 +181,13 @@ function update() {
     // normal of paddle. also caution: can get stuck with the jiggly jigglies -- look out
     // for that.
     ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
+    
+    hitPaddle = hitMax;
+    player.material.color.copy(player.material.hitColor);
+  } else if (hitPaddle > 0) {
+    hitPaddle -= 1;
+    var p = hitPaddle / hitMax;
+    _interpolate(player.material.color, p, player.material.normalColor, player.material.hitColor);
   }
 
   // all for debugging
