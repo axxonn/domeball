@@ -143,7 +143,9 @@ function _interpolate(target, alpha, color1, color2) {
   );
 }
 
-var normal = new THREE.Vector3(0, 0, 1);
+// the following two are the same vector, but we will keep them separate for clarity
+const wallNormal = new THREE.Vector3(0, 0, 1); // normal of back wall
+const paddleLocalNormal = new THREE.Vector3(0, 0, 1); // local normal of paddle (need to clone and convert to world before using)
 var hitWall = 0;
 var hitPaddle = 0;
 const hitMax = 20;
@@ -155,10 +157,11 @@ function update() {
   }
   */
 
+  /* test for collision with back wall */
   // risk of jiggly jiggles glitch if we don't have the second check
-  if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(normal) < 0) {
+  if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(wallNormal) < 0) {
     hitWall = hitMax;
-    ball.velocity.reflect(normal);
+    ball.velocity.reflect(wallNormal);
     ball.material.color.copy(ball.material.hitColor);
     //circle.material.color.copy(circle.material.hitColor);
   } else if (hitWall > 0) { // or just if (hitWall)
@@ -173,14 +176,19 @@ function update() {
   // the end of those numbers
   // debugText.innerHTML = JSON.stringify(player.worldToLocal(new THREE.Vector3()));
   
+  /* test for collision with paddle */
   var relativeBallPos = player.worldToLocal(ball.position.clone());
+  var paddleWorldNormal;
   if (Math.abs(relativeBallPos.x) <= player.geometry.parameters.width/2 + ballRadius
       && Math.abs(relativeBallPos.y) <= player.geometry.parameters.height/2 + ballRadius
-      && Math.abs(relativeBallPos.z) <= player.geometry.parameters.depth/2 + ballRadius) {
-    // temporarily lazily reflecting as if off sphere, will fix to actually bounce off
-    // normal of paddle. also caution: can get stuck with the jiggly jigglies -- look out
-    // for that.
-    ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
+      && Math.abs(relativeBallPos.z) <= player.geometry.parameters.depth/2 + ballRadius
+      && ball.velocity.dot(paddleWorldNormal = paddleLocalNormal.clone().applyEuler(player.rotation)) <= 0) {
+    // ^ putting this check last because it is checked the least often
+    
+    // temporarily reflecting as if always off the inner-facing side of the paddle -- doesn't
+    // matter too much during "normal" play of the game (wouldn't stay inside if it hit the side
+    // of the paddle anyway) but something to keep in mind -- should eventually correct
+    ball.velocity.reflect(paddleWorldNormal);
     
     hitPaddle = hitMax;
     player.material.color.copy(player.material.hitColor);
