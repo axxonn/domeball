@@ -137,6 +137,7 @@ function onMouseMove(event) {
 window.addEventListener('mousemove', onMouseMove, false);
 
 var debug = true; // toggle with 'd' to see sphere/plane
+var pause = false;
 window.addEventListener("keypress", function(event) {
   var key = String.fromCharCode(event.charCode);
   if (key == "d") {
@@ -150,6 +151,16 @@ window.addEventListener("keypress", function(event) {
       camera = ORTHOGRAPHIC_CAMERA;
     else
       camera = PERSPECTIVE_CAMERA;
+  } else if (key == "p") {
+    pause = !pause;
+    if (pause) {
+      window.removeEventListener('mousemove', onMouseMove, false);
+      ball.storedVelocity = ball.velocity; // !! new property !!
+      ball.velocity = new THREE.Vector3(0, 0, 0);
+    } else {
+      window.addEventListener('mousemove', onMouseMove, false);
+      ball.velocity = ball.storedVelocity;
+    }
   }
 });
 
@@ -161,6 +172,25 @@ function _interpolate(target, alpha, color1, color2) {
     color2.b * alpha + color1.b * (1 - alpha)
   );
 }
+
+// may be useful later
+/* assumes planeNormal is of unit length */
+function _distancePointPlane(point, planePoint, planeNormal) {
+  var dist = planeNormal.x * (point.x - planePoint.x) +
+             planeNormal.y * (point.y - planePoint.y) +
+             planeNormal.z * (point.z - planePoint.z);
+  return Math.abs(dist);
+}
+/* example usage:
+ * var distance = _distancePointPlane(
+ *   ball.position,
+ *   player.localToWorld(paddleLocalFrontFace.clone()),
+ *   paddleLocalNormal.clone().applyEuler(player.rotation)
+ * );
+ * if (distance <= ballRadius) {
+ *   ...
+ */
+
 
 // the following two are the same vector, but we will keep them separate for clarity
 const wallNormal = new THREE.Vector3(0, 0, 1); // normal of back wall
@@ -198,12 +228,12 @@ function update() {
   /* test for collision with paddle */
   var relativeBallPos = player.worldToLocal(ball.position.clone());
   var paddleWorldNormal;
-  if (Math.abs(relativeBallPos.x) <= player.geometry.parameters.width/2 + ballRadius
-      && Math.abs(relativeBallPos.y) <= player.geometry.parameters.height/2 + ballRadius
+  if (Math.abs(relativeBallPos.x) <= player.geometry.parameters.width/2
+      && Math.abs(relativeBallPos.y) <= player.geometry.parameters.height/2
       && Math.abs(relativeBallPos.z) <= player.geometry.parameters.depth/2 + ballRadius
       && ball.velocity.dot(paddleWorldNormal = paddleLocalNormal.clone().applyEuler(player.rotation)) <= 0) {
     // ^ putting this check last because it is checked the least often
-    
+
     // temporarily reflecting as if always off the inner-facing side of the paddle -- doesn't
     // matter too much during "normal" play of the game (wouldn't stay inside if it hit the side
     // of the paddle anyway) but something to keep in mind -- should eventually correct
@@ -218,12 +248,13 @@ function update() {
   }
 
   // all for debugging
-  if (keyboard.pressed("right")) player.translateX(0.1);
-  if (keyboard.pressed("left")) player.translateX(-0.1);
-  if (keyboard.pressed("up")) player.translateY(0.1);
-  if (keyboard.pressed("down")) player.translateY(-0.1);
-  if (keyboard.pressed("s")) player.translateZ(0.1);
-  if (keyboard.pressed("w")) player.translateZ(-0.1);
+  var debugSpeed = 0.005;
+  if (keyboard.pressed("right")) player.translateX(debugSpeed);
+  if (keyboard.pressed("left")) player.translateX(-debugSpeed);
+  if (keyboard.pressed("up")) player.translateY(debugSpeed);
+  if (keyboard.pressed("down")) player.translateY(-debugSpeed);
+  if (keyboard.pressed("s")) player.translateZ(debugSpeed);
+  if (keyboard.pressed("w")) player.translateZ(-debugSpeed);
   
   ball.position.add(ball.velocity);
   var newRadius = ball.position.length();
