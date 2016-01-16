@@ -21,8 +21,9 @@ var keyboard;
 var controls;
 
 var scene, camera, renderer;
+var PERSPECTIVE_CAMERA, ORTHOGRAPHIC_CAMERA;
 
-var plane, sphere, circle, player, ball;
+var plane, sphere, circle, player, ball, ballSphere;
 
 var scaling = 0.9;
 viewWidth = window.innerWidth * scaling;
@@ -36,12 +37,15 @@ function initEngine() {
 
   scene = new THREE.Scene();
   
-  camera = new THREE.PerspectiveCamera(90, viewWidth / viewHeight, 0.1, 1000);
   var r = viewWidth / viewHeight;
   var x = 6; // should be a bit greater than sphereRadius -- not coding it for now but keep in mind
-  //camera = new THREE.OrthographicCamera(-x*r, x*r, x, -x, 1, 1000);
-  camera.position.set(0, 0, 10);
-  camera.lookAt(scene.position);
+  ORTHOGRAPHIC_CAMERA = new THREE.OrthographicCamera(-x*r, x*r, x, -x, 1, 1000);
+  ORTHOGRAPHIC_CAMERA.position.set(0, 0, 10);
+  ORTHOGRAPHIC_CAMERA.lookAt(scene.position);
+  PERSPECTIVE_CAMERA = new THREE.PerspectiveCamera(90, r, 0.1, 1000);
+  PERSPECTIVE_CAMERA.position.set(0, 0, 10);
+  PERSPECTIVE_CAMERA.lookAt(scene.position);
+  camera = PERSPECTIVE_CAMERA;
 
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(viewWidth, viewHeight);
@@ -103,6 +107,16 @@ function initObjects() {
   ball.position.set(0, 1, 0); // eventually want to randomize, as with velocity
   ball.velocity = new THREE.Vector3(0.01, 0.01, 0.1); // !! new property !!
   scene.add(ball);
+
+  ballSphere = new THREE.Mesh(
+    // radius NEEDS to be 1 because we are scaling it by the ball position length
+    new THREE.SphereGeometry(1, 24, 24), 
+    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5})
+  );
+  ballSphere.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+  scene.add(ballSphere);
+  //var wireframe = new THREE.WireframeHelper(ballSphere, 0x555555);
+  //scene.add(wireframe);
 }
 
 var center = new THREE.Vector3(0, 0, 0);
@@ -131,6 +145,11 @@ window.addEventListener("keypress", function(event) {
     sphere.material.visible = debug;
   } else if (key == "r") { // r for reset!
     ball.position.copy(center); // eventually want to randomize (see above (ball initialization))
+  } else if (key == "c") { // c for camera!
+    if (camera == PERSPECTIVE_CAMERA)
+      camera = ORTHOGRAPHIC_CAMERA;
+    else
+      camera = PERSPECTIVE_CAMERA;
   }
 });
 
@@ -207,6 +226,8 @@ function update() {
   if (keyboard.pressed("w")) player.translateZ(-0.1);
   
   ball.position.add(ball.velocity);
+  var newRadius = ball.position.length();
+  ballSphere.scale.set(newRadius, newRadius, newRadius);
 }
 
 function render() {
