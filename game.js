@@ -23,7 +23,8 @@ var controls;
 var scene, camera, renderer;
 var PERSPECTIVE_CAMERA, ORTHOGRAPHIC_CAMERA;
 
-var plane, sphere, circle, player, playerLine, ball, ballSphere, ballLine;
+var plane, sphere, circle, player, playerLine, ball, ballSphere, ballLine, ballLineCircle;
+var ballLineProjectedPoint;
 
 var scaling = 0.9;
 viewWidth = window.innerWidth * scaling;
@@ -87,7 +88,8 @@ function initObjects() {
   var playerLineGeometry = new THREE.Geometry();
   playerLineGeometry.vertices.push(
     new THREE.Vector3(0, 0, 0),
-    player.position // currently starts in the center so doesn't really matter
+    player.position // literally uses the vector, so follows the player!
+    //player.position.clone().projectOnPlane(wallNormal)
   );
   // would have been great if this had been documented on the dashed material page thx
   playerLineGeometry.computeLineDistances();
@@ -137,16 +139,25 @@ function initObjects() {
   //var wireframe = new THREE.WireframeHelper(ballSphere, 0x555555);
   //scene.add(wireframe);
   
+  ballLineProjectedPoint = ball.position.clone().projectOnPlane(wallNormal);
+
   var ballLineMaterial = new THREE.LineDashedMaterial({color: 0x333333, dashSize: 0.1, gapSize: 0.1});
   var ballLineGeometry = new THREE.Geometry();
   ballLineGeometry.vertices.push(
     new THREE.Vector3(0, 0, 0),
-    ball.position // currently starts in the center so doesn't really matter
+    ball.position, // literally uses the vector, so follows the ball!
+    ballLineProjectedPoint
   );
   // would have been great if this had been documented on the dashed material page thx
   ballLineGeometry.computeLineDistances();
   ballLine = new THREE.Line(ballLineGeometry, ballLineMaterial);
   scene.add(ballLine);
+
+  var ballLineCircleGeometry = new THREE.CircleGeometry(ballLineProjectedPoint.length(), 48);
+  ballLineCircleGeometry.vertices.shift(); // remove center vertex
+  ballLineCircleGeometry.computeLineDistances();
+  ballLineCircle = new THREE.Line(ballLineCircleGeometry, ballLineMaterial);
+  scene.add(ballLineCircle);
 }
 
 var center = new THREE.Vector3(0, 0, 0);
@@ -164,7 +175,6 @@ function onMouseMove(event) {
   }
   player.lookAt(center);
 
-  playerLine.geometry.vertices[1].copy(player.position);
   playerLine.geometry.computeLineDistances();
   playerLine.geometry.verticesNeedUpdate = true;
   playerLine.geometry.lineDistancesNeedUpdate = true;
@@ -299,10 +309,19 @@ function update() {
   ball.position.add(ball.velocity);
   var newRadius = ball.position.length();
   ballSphere.scale.set(newRadius, newRadius, newRadius);
-  ballLine.geometry.vertices[1].copy(ball.position);
+  
+  ballLineProjectedPoint.copy(ball.position.clone().projectOnPlane(wallNormal));
   ballLine.geometry.computeLineDistances();
   ballLine.geometry.verticesNeedUpdate = true;
   ballLine.geometry.lineDistancesNeedUpdate = true;
+
+  
+  for (var i = 0; i < ballLineCircle.geometry.vertices.length; i++) {
+    ballLineCircle.geometry.vertices[i].normalize().multiplyScalar(ballLineProjectedPoint.length());
+  }
+  ballLineCircle.geometry.computeLineDistances();
+  ballLineCircle.geometry.verticesNeedUpdate = true;
+  ballLineCircle.geometry.lineDistancesNeedUpdate = true;
 }
 
 function render() {
