@@ -153,7 +153,8 @@ function initObjects() {
   ballLine = new THREE.Line(ballLineGeometry, ballLineMaterial);
   scene.add(ballLine);
 
-  var ballLineCircleGeometry = new THREE.CircleGeometry(ballLineProjectedPoint.length(), 48);
+  // radius NEEDS to be 1 because we are scaling it by projected ball position length
+  var ballLineCircleGeometry = new THREE.CircleGeometry(1, 48);
   ballLineCircleGeometry.vertices.shift(); // remove center vertex
   ballLineCircleGeometry.computeLineDistances();
   ballLineCircle = new THREE.Line(ballLineCircleGeometry, ballLineMaterial);
@@ -315,13 +316,8 @@ function update() {
   ballLine.geometry.verticesNeedUpdate = true;
   ballLine.geometry.lineDistancesNeedUpdate = true;
 
-  
-  for (var i = 0; i < ballLineCircle.geometry.vertices.length; i++) {
-    ballLineCircle.geometry.vertices[i].normalize().multiplyScalar(ballLineProjectedPoint.length());
-  }
-  ballLineCircle.geometry.computeLineDistances();
-  ballLineCircle.geometry.verticesNeedUpdate = true;
-  ballLineCircle.geometry.lineDistancesNeedUpdate = true;
+  var l = ballLineProjectedPoint.length();
+  ballLineCircle.scale.set(l, l, l);
 }
 
 function render() {
