@@ -23,7 +23,7 @@ var controls;
 var scene, camera, renderer;
 var PERSPECTIVE_CAMERA, ORTHOGRAPHIC_CAMERA;
 
-var plane, sphere, circle, player, ball, ballSphere;
+var plane, sphere, circle, player, playerLine, ball, ballSphere, ballLine;
 
 var scaling = 0.9;
 viewWidth = window.innerWidth * scaling;
@@ -82,6 +82,17 @@ function initObjects() {
   player.material.hitColor = new THREE.Color(0, 0, 1);
   player.material.normalColor = player.material.color.clone(); // for now
   scene.add(player);
+  
+  var playerLineMaterial = new THREE.LineDashedMaterial({color: 0x0000ff, dashSize: 0.1, gapSize: 0.1});
+  var playerLineGeometry = new THREE.Geometry();
+  playerLineGeometry.vertices.push(
+    new THREE.Vector3(0, 0, 0),
+    player.position // currently starts in the center so doesn't really matter
+  );
+  // would have been great if this had been documented on the dashed material page thx
+  playerLineGeometry.computeLineDistances();
+  playerLine = new THREE.Line(playerLineGeometry, playerLineMaterial);
+  scene.add(playerLine);
 
   plane = new THREE.Mesh(
     // needs to be fixed to fill the screen exactly based on resolution
@@ -125,6 +136,17 @@ function initObjects() {
   scene.add(ballSphere);
   //var wireframe = new THREE.WireframeHelper(ballSphere, 0x555555);
   //scene.add(wireframe);
+  
+  var ballLineMaterial = new THREE.LineDashedMaterial({color: 0x333333, dashSize: 0.1, gapSize: 0.1});
+  var ballLineGeometry = new THREE.Geometry();
+  ballLineGeometry.vertices.push(
+    new THREE.Vector3(0, 0, 0),
+    ball.position // currently starts in the center so doesn't really matter
+  );
+  // would have been great if this had been documented on the dashed material page thx
+  ballLineGeometry.computeLineDistances();
+  ballLine = new THREE.Line(ballLineGeometry, ballLineMaterial);
+  scene.add(ballLine);
 }
 
 var center = new THREE.Vector3(0, 0, 0);
@@ -141,10 +163,16 @@ function onMouseMove(event) {
     player.position.copy(intersect.point.normalize().multiplyScalar(sphereRadius));
   }
   player.lookAt(center);
+
+  playerLine.geometry.vertices[1].copy(player.position);
+  playerLine.geometry.computeLineDistances();
+  playerLine.geometry.verticesNeedUpdate = true;
+  playerLine.geometry.lineDistancesNeedUpdate = true;
 }
 window.addEventListener('mousemove', onMouseMove, false);
 
 var debug = true; // toggle with 'd' to see sphere/plane
+var lines = true;
 var pause = false;
 window.addEventListener("keypress", function(event) {
   var key = String.fromCharCode(event.charCode);
@@ -169,6 +197,10 @@ window.addEventListener("keypress", function(event) {
       window.addEventListener('mousemove', onMouseMove, false);
       ball.velocity = ball.storedVelocity;
     }
+  } else if (key == "l") {
+    lines = !lines;
+    playerLine.material.visible = lines;
+    ballLine.material.visible = lines;
   }
 });
 
@@ -267,6 +299,10 @@ function update() {
   ball.position.add(ball.velocity);
   var newRadius = ball.position.length();
   ballSphere.scale.set(newRadius, newRadius, newRadius);
+  ballLine.geometry.vertices[1].copy(ball.position);
+  ballLine.geometry.computeLineDistances();
+  ballLine.geometry.verticesNeedUpdate = true;
+  ballLine.geometry.lineDistancesNeedUpdate = true;
 }
 
 function render() {
