@@ -47,6 +47,14 @@ function initEngine() {
   PERSPECTIVE_CAMERA.lookAt(scene.position);
   camera = PERSPECTIVE_CAMERA;
 
+  // just a little bit of directional light with an emphasis on the ambient --
+  // don't want the shadowed sides to be too dark
+  var directionalLight = new THREE.DirectionalLight(0xffffff, 0.2);
+  directionalLight.position.set(1, 1, 1).normalize();
+  scene.add(directionalLight);
+  var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+  scene.add(ambientLight);
+
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(viewWidth, viewHeight);
   document.body.appendChild(renderer.domElement);
@@ -69,7 +77,7 @@ var ballRadius = 0.2;
 function initObjects() {
   player = new THREE.Mesh(
     new THREE.BoxGeometry(paddleSize, paddleSize, 0.2),
-    new THREE.MeshBasicMaterial({color: 0xdd2222})
+    new THREE.MeshLambertMaterial({color: 0xdd2222})
   );
   player.material.hitColor = new THREE.Color(0, 0, 1);
   player.material.normalColor = player.material.color.clone(); // for now
