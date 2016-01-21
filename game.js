@@ -1,6 +1,6 @@
 var container, stats;
 
-function init() {
+function initContainer() {
   container = document.createElement("div");
   document.body.appendChild(container);
   stats = new Stats();
@@ -8,7 +8,6 @@ function init() {
   stats.domElement.style.top = "0px";
   container.appendChild(stats.domElement);
 }
-init();
 
 var debugText;
 function initDebug() {
@@ -23,12 +22,13 @@ var controls;
 var scene, camera, renderer;
 var PERSPECTIVE_CAMERA, ORTHOGRAPHIC_CAMERA;
 
-var plane, sphere, circle, player, playerLine, ball, ballSphere, ballLine, ballLineCircle;
-var ballLineProjectedPoint;
+var plane, sphere, circle;
+var player, playerLine;
+var ball, ballSphere, ballLine, ballLineCircle, ballLineProjectedPoint;
 
 var scaling = 0.9;
-viewWidth = window.innerWidth * scaling;
-viewHeight = window.innerHeight * scaling;
+var viewWidth = window.innerWidth * scaling;
+var viewHeight = window.innerHeight * scaling;
 
 function initEngine() {
   raycaster = new THREE.Raycaster();
@@ -61,7 +61,7 @@ function initEngine() {
   document.body.appendChild(renderer.domElement);
 
   // mainly for debugging, might use it for something else later
-  controls = new THREE.TrackballControls( camera );
+  controls = new THREE.TrackballControls(camera);
   controls.rotateSpeed = 1.0;
   controls.zoomSpeed = 1.2;
   controls.panSpeed = 0.8;
@@ -71,17 +71,13 @@ function initEngine() {
   controls.dynamicDampingFactor = 0.3;
 }
 
-var paddleSize = 1;
-var sphereRadius = 5;
-var ballRadius = 0.2;
-
-function initObjects() {
+function initPlayer(size) {
   player = new THREE.Mesh(
-    new THREE.BoxGeometry(paddleSize, paddleSize, 0.2),
+    new THREE.BoxGeometry(size, size, 0.2),
     new THREE.MeshLambertMaterial({color: 0xdd2222})
   );
-  player.material.hitColor = new THREE.Color(0, 0, 1);
-  player.material.normalColor = player.material.color.clone(); // for now
+  player.userData.normalColor = player.material.color.clone(); // for now
+  player.userData.hitColor = new THREE.Color(0, 0, 1);
   scene.add(player);
   
   var playerLineMaterial = new THREE.LineDashedMaterial({color: 0x0000ff, dashSize: 0.1, gapSize: 0.1});
@@ -95,38 +91,18 @@ function initObjects() {
   playerLineGeometry.computeLineDistances();
   playerLine = new THREE.Line(playerLineGeometry, playerLineMaterial);
   scene.add(playerLine);
+}
 
-  plane = new THREE.Mesh(
-    // needs to be fixed to fill the screen exactly based on resolution
-    new THREE.PlaneBufferGeometry(25, 20, 2, 2),
-    new THREE.MeshBasicMaterial({color: 0xaaffaa, visible: debug})
-  );
-  scene.add(plane);
-
-  sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(sphereRadius, 48, 48),
-    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5, visible: debug})
-  );
-  scene.add(sphere);
-
-  circle = new THREE.Mesh(
-      new THREE.CircleGeometry(sphereRadius, 60),
-      new THREE.MeshBasicMaterial(/*{color:0xaaaaff}*/) // using rgb for now for easier math
-  );
-  circle.material.normalColor = new THREE.Color(0.6, 0.6, 1); // !! new property !!
-  circle.material.hitColor = new THREE.Color(0.7, 0.7, 1); // !! new property !!
-  circle.material.color.copy(circle.material.normalColor);
-  scene.add(circle);
-
+function initBall(radius) {
   ball = new THREE.Mesh(
-    new THREE.SphereGeometry(ballRadius, 12, 12),
-    new THREE.MeshBasicMaterial(/*{color: 0xffffff}*/)
+    new THREE.SphereGeometry(radius, 12, 12),
+    new THREE.MeshBasicMaterial() // color is set below
   );
-  ball.material.normalColor = new THREE.Color(1, 1, 1);
-  ball.material.hitColor = new THREE.Color(1, 0, 0);
-  ball.material.color.copy(ball.material.normalColor);
+  ball.userData.normalColor = new THREE.Color(1, 1, 1);
+  ball.userData.hitColor = new THREE.Color(1, 0, 0);
+  ball.material.color.copy(ball.userData.normalColor);
   ball.position.set(0, 1, 0); // eventually want to randomize, as with velocity
-  ball.velocity = new THREE.Vector3(0.01, 0.01, 0.1); // !! new property !!
+  ball.userData.velocity = new THREE.Vector3(0.01, 0.01, 0.1);
   scene.add(ball);
 
   ballSphere = new THREE.Mesh(
@@ -161,7 +137,41 @@ function initObjects() {
   scene.add(ballLineCircle);
 }
 
-var center = new THREE.Vector3(0, 0, 0);
+function initBackground(radius) {
+  plane = new THREE.Mesh(
+    // needs to be fixed to fill the screen exactly based on resolution
+    new THREE.PlaneBufferGeometry(25, 20, 2, 2),
+    new THREE.MeshBasicMaterial({color: 0xaaffaa, visible: debug})
+  );
+  scene.add(plane);
+
+  sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 48, 48),
+    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5, visible: debug})
+  );
+  scene.add(sphere);
+
+  circle = new THREE.Mesh(
+      new THREE.CircleGeometry(radius, 60),
+      new THREE.MeshBasicMaterial() // color is set below
+  );
+  circle.userData.normalColor = new THREE.Color(0.6, 0.6, 1);
+  circle.userData.hitColor = new THREE.Color(0.7, 0.7, 1);
+  circle.material.color.copy(circle.userData.normalColor);
+  scene.add(circle);
+}
+
+const paddleSize = 1;
+const sphereRadius = 5;
+const ballRadius = 0.2;
+
+function initObjects() {
+  initPlayer(paddleSize);
+  initBall(ballRadius);
+  initBackground(sphereRadius);
+}
+
+const CENTER = new THREE.Vector3(0, 0, 0);
 
 function onMouseMove(event) {
   mouse.x = (event.clientX / viewWidth) * 2 - 1;
@@ -174,7 +184,7 @@ function onMouseMove(event) {
     intersect = raycaster.intersectObject(plane)[0];
     player.position.copy(intersect.point.normalize().multiplyScalar(sphereRadius));
   }
-  player.lookAt(center);
+  player.lookAt(CENTER);
 
   playerLine.geometry.computeLineDistances();
   playerLine.geometry.verticesNeedUpdate = true;
@@ -192,7 +202,7 @@ window.addEventListener("keypress", function(event) {
     plane.material.visible = debug;
     sphere.material.visible = debug;
   } else if (key == "r") { // r for reset!
-    ball.position.copy(center); // eventually want to randomize (see above (ball initialization))
+    ball.position.copy(CENTER); // eventually want to randomize (see above (ball initialization))
   } else if (key == "c") { // c for camera!
     if (camera == PERSPECTIVE_CAMERA)
       camera = ORTHOGRAPHIC_CAMERA;
@@ -202,11 +212,11 @@ window.addEventListener("keypress", function(event) {
     pause = !pause;
     if (pause) {
       window.removeEventListener('mousemove', onMouseMove, false);
-      ball.storedVelocity = ball.velocity; // !! new property !!
-      ball.velocity = new THREE.Vector3(0, 0, 0);
+      ball.userData.storedVelocity = ball.userData.velocity;
+      ball.userData.velocity = new THREE.Vector3(0, 0, 0);
     } else {
       window.addEventListener('mousemove', onMouseMove, false);
-      ball.velocity = ball.storedVelocity;
+      ball.userData.velocity = ball.userData.storedVelocity;
     }
   } else if (key == "l") {
     lines = !lines;
@@ -243,6 +253,16 @@ function _distancePointPlane(point, planePoint, planeNormal) {
  */
 
 
+const debugSpeed = 0.005
+function handleKeyboard() {
+  if (keyboard.pressed("right")) player.translateX(debugSpeed);
+  if (keyboard.pressed("left")) player.translateX(-debugSpeed);
+  if (keyboard.pressed("up")) player.translateY(debugSpeed);
+  if (keyboard.pressed("down")) player.translateY(-debugSpeed);
+  if (keyboard.pressed("s")) player.translateZ(debugSpeed);
+  if (keyboard.pressed("w")) player.translateZ(-debugSpeed);
+}
+
 // the following two are the same vector, but we will keep them separate for clarity
 const wallNormal = new THREE.Vector3(0, 0, 1); // normal of back wall
 const paddleLocalNormal = new THREE.Vector3(0, 0, 1); // local normal of paddle (need to clone and convert to world before using)
@@ -253,22 +273,22 @@ function update() {
   /* // won't need this anymore, but might keep for powerup or such later
   if (ball.position.length() >= 5 - ballRadius) {
     // multiplyScalar -1 is not really needed but for sake of 'correctness'
-    ball.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
+    ball.userData.velocity.reflect(ball.position.clone().normalize().multiplyScalar(-1));
   }
   */
 
   /* test for collision with back wall */
   // risk of jiggly jiggles glitch if we don't have the second check
-  if (ball.position.z <= 0 + ballRadius && ball.velocity.dot(wallNormal) < 0) {
+  if (ball.position.z <= 0 + ballRadius && ball.userData.velocity.dot(wallNormal) < 0) {
     hitWall = hitMax;
-    ball.velocity.reflect(wallNormal);
-    ball.material.color.copy(ball.material.hitColor);
-    //circle.material.color.copy(circle.material.hitColor);
+    ball.userData.velocity.reflect(wallNormal);
+    ball.material.color.copy(ball.userData.hitColor);
+    //circle.material.color.copy(circle.userData.hitColor);
   } else if (hitWall > 0) { // or just if (hitWall)
     hitWall -= 1;
     var p = hitWall / hitMax; // percentage of time left in hit mode
-    //_interpolate(circle.material.color, p, circle.material.normalColor, circle.material.hitColor);
-    _interpolate(ball.material.color, p, ball.material.normalColor, ball.material.hitColor);
+    //_interpolate(circle.material.color, p, circle.userData.normalColor, circle.userData.hitColor);
+    _interpolate(ball.material.color, p, ball.userData.normalColor, ball.userData.hitColor);
   }
 
   // should be (0, 0, 5). spent an hour wondering why I kept getting crazy values like
@@ -282,32 +302,23 @@ function update() {
   if (Math.abs(relativeBallPos.x) <= player.geometry.parameters.width/2
       && Math.abs(relativeBallPos.y) <= player.geometry.parameters.height/2
       && Math.abs(relativeBallPos.z) <= player.geometry.parameters.depth/2 + ballRadius
-      && ball.velocity.dot(paddleWorldNormal = paddleLocalNormal.clone().applyEuler(player.rotation)) <= 0) {
+      && ball.userData.velocity.dot(paddleWorldNormal = paddleLocalNormal.clone().applyEuler(player.rotation)) <= 0) {
     // ^ putting this check last because it is checked the least often
 
     // temporarily reflecting as if always off the inner-facing side of the paddle -- doesn't
     // matter too much during "normal" play of the game (wouldn't stay inside if it hit the side
     // of the paddle anyway) but something to keep in mind -- should eventually correct
-    ball.velocity.reflect(paddleWorldNormal);
+    ball.userData.velocity.reflect(paddleWorldNormal);
     
     hitPaddle = hitMax;
-    player.material.color.copy(player.material.hitColor);
+    player.material.color.copy(player.userData.hitColor);
   } else if (hitPaddle > 0) {
     hitPaddle -= 1;
     var p = hitPaddle / hitMax;
-    _interpolate(player.material.color, p, player.material.normalColor, player.material.hitColor);
+    _interpolate(player.material.color, p, player.userData.normalColor, player.userData.hitColor);
   }
-
-  // all for debugging
-  var debugSpeed = 0.005;
-  if (keyboard.pressed("right")) player.translateX(debugSpeed);
-  if (keyboard.pressed("left")) player.translateX(-debugSpeed);
-  if (keyboard.pressed("up")) player.translateY(debugSpeed);
-  if (keyboard.pressed("down")) player.translateY(-debugSpeed);
-  if (keyboard.pressed("s")) player.translateZ(debugSpeed);
-  if (keyboard.pressed("w")) player.translateZ(-debugSpeed);
-  
-  ball.position.add(ball.velocity);
+ 
+  ball.position.add(ball.userData.velocity);
   var newRadius = ball.position.length();
   ballSphere.scale.set(newRadius, newRadius, newRadius);
   
@@ -318,6 +329,8 @@ function update() {
 
   var l = ballLineProjectedPoint.length();
   ballLineCircle.scale.set(l, l, l);
+
+  handleKeyboard();
 }
 
 function render() {
@@ -332,6 +345,7 @@ function animate() {
   stats.update();
 }
 
+initContainer();
 initEngine();
 initObjects();
 initDebug();
