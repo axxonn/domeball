@@ -145,12 +145,6 @@ function initBackground(radius) {
   );
   scene.add(plane);
 
-  sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 48, 48),
-    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5, visible: debug})
-  );
-  scene.add(sphere);
-
   circle = new THREE.Mesh(
       new THREE.CircleGeometry(radius, 60),
       new THREE.MeshBasicMaterial() // color is set below
@@ -161,14 +155,24 @@ function initBackground(radius) {
   scene.add(circle);
 }
 
+/* separating this from initBackground to fix rendering order */
+function initSphere(radius) {
+  sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 48, 48),
+    new THREE.MeshBasicMaterial({color: 0xaaaaff, transparent: true, opacity: 0.5, visible: debug})
+  );
+  scene.add(sphere);
+}
+
 const paddleSize = 1;
 const sphereRadius = 5;
 const ballRadius = 0.2;
 
 function initObjects() {
+  initBackground(sphereRadius);
   initPlayer(paddleSize);
   initBall(ballRadius);
-  initBackground(sphereRadius);
+  initSphere(sphereRadius);
 }
 
 const CENTER = new THREE.Vector3(0, 0, 0);
