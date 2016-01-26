@@ -26,6 +26,8 @@ var plane, sphere, circle;
 var player, playerLine, playerLineCircle, playerLineProjectedPoint;
 var ball, ballLine, ballLineCircle, ballLineProjectedPoint, ballSphere;
 
+var score;
+
 var scaling = 0.9;
 var viewWidth = window.innerWidth * scaling;
 var viewHeight = window.innerHeight * scaling;
@@ -101,6 +103,16 @@ function initPlayer(size) {
   scene.add(playerLineCircle);
 }
 
+function resetBall() {
+  var startingSpeed = 0.1;
+  ball.userData.velocity.set(
+    0.05 * (Math.random() - 0.5),
+    0.05 * (Math.random() - 0.5),
+    0.1
+  ).normalize().multiplyScalar(startingSpeed);
+  ball.position.set(0, 0, 0);
+}
+
 function initBall(radius) {
   ball = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 12, 12),
@@ -109,8 +121,9 @@ function initBall(radius) {
   ball.userData.normalColor = new THREE.Color(1, 1, 1);
   ball.userData.hitColor = new THREE.Color(1, 0, 0);
   ball.material.color.copy(ball.userData.normalColor);
-  ball.position.set(0, 1, 0); // eventually want to randomize, as with velocity
-  ball.userData.velocity = new THREE.Vector3(0.01, 0.01, 0.1);
+  // ball.position.set(0, 1, 0); // eventually want to randomize, as with velocity
+  ball.userData.velocity = new THREE.Vector3();
+  resetBall();
   scene.add(ball);
 
   ballSphere = new THREE.Mesh(
@@ -148,7 +161,7 @@ function initBall(radius) {
 function initBackground(radius) {
   plane = new THREE.Mesh(
     // needs to be fixed to fill the screen exactly based on resolution
-    new THREE.PlaneBufferGeometry(25, 20, 2, 2),
+    new THREE.PlaneBufferGeometry(100, 80, 2, 2),
     new THREE.MeshBasicMaterial({color: 0xaaffaa, visible: debug})
   );
   scene.add(plane);
@@ -175,7 +188,6 @@ function initSphere(radius) {
 const paddleSize = 1;
 const sphereRadius = 5;
 const ballRadius = 0.2;
-
 function initObjects() {
   initBackground(sphereRadius);
   initPlayer(paddleSize);
@@ -183,8 +195,11 @@ function initObjects() {
   initSphere(sphereRadius);
 }
 
-const CENTER = new THREE.Vector3(0, 0, 0);
+function initGame() {
+  score = 0;
+}
 
+const CENTER = new THREE.Vector3(0, 0, 0);
 function onMouseMove(event) {
   mouse.x = (event.clientX / viewWidth) * 2 - 1;
   mouse.y = -(event.clientY / viewHeight) * 2 + 1;
@@ -218,7 +233,8 @@ window.addEventListener("keypress", function(event) {
     plane.material.visible = debug;
     sphere.material.visible = debug;
   } else if (key == "r") { // r for reset!
-    ball.position.copy(CENTER); // eventually want to randomize (see above (ball initialization))
+    resetBall();
+    score = 0;
   } else if (key == "c") { // c for camera!
     if (camera == PERSPECTIVE_CAMERA)
       camera = ORTHOGRAPHIC_CAMERA;
@@ -299,7 +315,8 @@ function update() {
   // risk of jiggly jiggles glitch if we don't have the second check
   if (ball.position.z <= 0 + ballRadius && ball.userData.velocity.dot(wallNormal) < 0) {
     hitWall = hitMax;
-    ball.userData.velocity.reflect(wallNormal);
+    var newSpeed = ball.userData.velocity.length() + 0.002;
+    ball.userData.velocity.reflect(wallNormal).normalize().multiplyScalar(newSpeed);
     ball.material.color.copy(ball.userData.hitColor);
     //circle.material.color.copy(circle.userData.hitColor);
   } else if (hitWall > 0) { // or just if (hitWall)
@@ -330,6 +347,9 @@ function update() {
     
     hitPaddle = hitMax;
     player.material.color.copy(player.userData.hitColor);
+
+    score++;
+    debugText.innerHTML = score;
   } else if (hitPaddle > 0) {
     hitPaddle -= 1;
     var p = hitPaddle / hitMax;
@@ -337,6 +357,7 @@ function update() {
   }
  
   ball.position.add(ball.userData.velocity);
+
   var newRadius = ball.position.length();
   ballSphere.scale.set(newRadius, newRadius, newRadius);
   
@@ -366,5 +387,6 @@ function animate() {
 initContainer();
 initEngine();
 initObjects();
+initGame();
 initDebug();
 animate();
