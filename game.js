@@ -23,8 +23,8 @@ var scene, camera, renderer;
 var PERSPECTIVE_CAMERA, ORTHOGRAPHIC_CAMERA;
 
 var plane, sphere, circle;
-var player, playerLine;
-var ball, ballSphere, ballLine, ballLineCircle, ballLineProjectedPoint;
+var player, playerLine, playerLineCircle, playerLineProjectedPoint;
+var ball, ballLine, ballLineCircle, ballLineProjectedPoint, ballSphere;
 
 var scaling = 0.9;
 var viewWidth = window.innerWidth * scaling;
@@ -79,18 +79,26 @@ function initPlayer(size) {
   player.userData.normalColor = player.material.color.clone(); // for now
   player.userData.hitColor = new THREE.Color(0, 0, 1);
   scene.add(player);
-  
+ 
+  playerLineProjectedPoint = player.position.clone().projectOnPlane(wallNormal);
+
   var playerLineMaterial = new THREE.LineDashedMaterial({color: 0x0000ff, dashSize: 0.1, gapSize: 0.1});
   var playerLineGeometry = new THREE.Geometry();
   playerLineGeometry.vertices.push(
     new THREE.Vector3(0, 0, 0),
-    player.position // literally uses the vector, so follows the player!
-    //player.position.clone().projectOnPlane(wallNormal)
+    player.position, // literally uses the vector, so follows the player!
+    playerLineProjectedPoint
   );
   // would have been great if this had been documented on the dashed material page thx
   playerLineGeometry.computeLineDistances();
   playerLine = new THREE.Line(playerLineGeometry, playerLineMaterial);
   scene.add(playerLine);
+
+  var playerLineCircleGeometry = new THREE.CircleGeometry(1, 48);
+  playerLineCircleGeometry.vertices.shift(); // remove center vertex
+  playerLineCircleGeometry.computeLineDistances();
+  playerLineCircle = new THREE.Line(playerLineCircleGeometry, playerLineMaterial.clone());
+  scene.add(playerLineCircle);
 }
 
 function initBall(radius) {
@@ -133,7 +141,7 @@ function initBall(radius) {
   var ballLineCircleGeometry = new THREE.CircleGeometry(1, 48);
   ballLineCircleGeometry.vertices.shift(); // remove center vertex
   ballLineCircleGeometry.computeLineDistances();
-  ballLineCircle = new THREE.Line(ballLineCircleGeometry, ballLineMaterial);
+  ballLineCircle = new THREE.Line(ballLineCircleGeometry, ballLineMaterial.clone());
   scene.add(ballLineCircle);
 }
 
@@ -190,9 +198,13 @@ function onMouseMove(event) {
   }
   player.lookAt(CENTER);
 
+  playerLineProjectedPoint.copy(player.position.clone().projectOnPlane(wallNormal));
   playerLine.geometry.computeLineDistances();
   playerLine.geometry.verticesNeedUpdate = true;
   playerLine.geometry.lineDistancesNeedUpdate = true;
+
+  var l = playerLineProjectedPoint.length();
+  playerLineCircle.scale.set(l, l, l);
 }
 window.addEventListener('mousemove', onMouseMove, false);
 
@@ -225,7 +237,9 @@ window.addEventListener("keypress", function(event) {
   } else if (key == "l") {
     lines = !lines;
     playerLine.material.visible = lines;
+    playerLineCircle.material.visible = lines;
     ballLine.material.visible = lines;
+    ballLineCircle.material.visible = lines;
   }
 });
 
